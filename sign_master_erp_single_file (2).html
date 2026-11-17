@@ -1,0 +1,2419 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIGN-MASTER ERP PRO - ระบบบริหารจัดการร้านป้ายโฆษณาครบวงจร</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Prompt & Sarabun for clean Thai typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- React 18 & Babel Standalone -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Prompt', 'Sarabun', sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    .font-sarabun {
+      font-family: 'Sarabun', sans-serif;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    /* A4 Print Styles */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only-container {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 10mm;
+      }
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-amber-500 selection:text-slate-950">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // =========================================================================
+    // INITIAL MOCK DATA (ข้อมูลจำลองสำหรับร้านป้ายครบวงจร)
+    // =========================================================================
+    const INITIAL_STAFF = [
+      {
+        id: 'STF-001',
+        name: 'คุณธนากร (เจ้าของร้าน)',
+        role: 'Admin Master',
+        pin: '9999',
+        department: 'บริหาร / การเงิน',
+        canViewPrices: true,
+        canEditJobs: true,
+        canManageInventory: true,
+      },
+      {
+        id: 'STF-002',
+        name: 'คุณนลินี (ฝ่ายขาย & กราฟิก)',
+        role: 'Sales & Design',
+        pin: '1111',
+        department: 'ขาย & ออกแบบ',
+        canViewPrices: true,
+        canEditJobs: true,
+        canManageInventory: false,
+      },
+      {
+        id: 'STF-003',
+        name: 'ช่างสมชาย (หัวหน้าผลิต & ติดตั้ง)',
+        role: 'Production & Installer',
+        pin: '2222',
+        department: 'โรงงานผลิต & ติดตั้ง',
+        canViewPrices: false,
+        canEditJobs: true,
+        canManageInventory: false,
+      }
+    ];
+
+    const INITIAL_JOBS = [
+      {
+        id: 'JOB-2611-001',
+        customerName: 'บจก. สยามคอฟฟี่ โรสเตอร์',
+        customerPhone: '089-456-7890',
+        customerTaxId: '0105564098123',
+        customerAddress: '88/9 ถ.สุขุมวิท แขวงคลองตัน เขตคลองเตย กรุงเทพฯ 10110',
+        title: 'ป้ายหน้าร้าน อะคริลิกซิงค์ยกขอบ ไฟ LED ออกหน้า',
+        pricingMode: 'height', // 'area' | 'height' | 'lump'
+        widthCm: 420,
+        heightCm: 85,
+        qty: 1,
+        unitPrice: 145, // บาทต่อ ซม. ความสูง
+        totalPrice: 12325,
+        estimatedCost: 5400,
+        depositPaid: 6000,
+        material: 'ซิงค์ทำสีพ่นอุตสาหกรรม + หน้าอะคริลิกมิล 3มม. + LED โมดูลกันน้ำ',
+        stage: 'producing', // 'design' | 'producing' | 'assembly' | 'installing' | 'completed'
+        dueDate: '2026-11-18',
+        artworkApproved: true,
+        artworkApprovedAt: '2026-11-12 14:30',
+        artworkNotes: 'ลูกค้าคอนเฟิร์มโทนสีทองด้าน Pantone 871C และแสงไฟ Warm White 3000K',
+        installer: 'ช่างสมชาย + ทีม A',
+        installLocationUrl: 'https://maps.google.com/?q=13.736717,100.523186',
+        installStatus: 'pending',
+        qcChecklist: {
+          sizeVerified: true,
+          colorChecked: true,
+          ledTested: false,
+          frameWelded: true,
+        },
+        createdAt: '2026-11-10'
+      },
+      {
+        id: 'JOB-2611-002',
+        customerName: 'คลินิกทันตกรรม สไมล์พลัส',
+        customerPhone: '081-234-5678',
+        customerTaxId: '0125561004512',
+        customerAddress: '199 หมู่ 4 ต.ท่าสะอ้าน อ.บางปะกง จ.ฉะเชิงเทรา 24130',
+        title: 'ป้ายไวนิลโครงเหล็กกล่อง 300x75 ซม. (2 ด้าน)',
+        pricingMode: 'area',
+        widthCm: 300,
+        heightCm: 75,
+        qty: 2,
+        unitPrice: 850, // บาทต่อ ตร.ม. รวมโครง
+        totalPrice: 3825,
+        estimatedCost: 1650,
+        depositPaid: 2000,
+        material: 'ไวนิลทึบแสง 440 แกรม พิมพ์ Eco-Solvent + เหล็กกล่อง 1x1 นิ้ว ทาสีกันสนิม',
+        stage: 'installing',
+        dueDate: '2026-11-16',
+        artworkApproved: true,
+        artworkApprovedAt: '2026-11-13 10:15',
+        artworkNotes: 'พับขอบตอกตาไก่เสริมมุมทุกจุด เตรียมพุกเหล็ก 3/8 ติดผนังปูน',
+        installer: 'ช่างสมชาย + ทีม B',
+        installLocationUrl: 'https://maps.google.com/?q=13.5482,100.9925',
+        installStatus: 'pending',
+        qcChecklist: {
+          sizeVerified: true,
+          colorChecked: true,
+          ledTested: true,
+          frameWelded: true,
+        },
+        createdAt: '2026-11-11'
+      },
+      {
+        id: 'JOB-2611-003',
+        customerName: 'ร้านชาบู โอซาก้า สาขา 2',
+        customerPhone: '095-888-1122',
+        customerTaxId: '0245565001998',
+        customerAddress: '45/2 ถ.เทพคุณากร ต.หน้าเมือง อ.เมือง จ.ฉะเชิงเทรา 24000',
+        title: 'สติ๊กเกอร์เมนูติดผนัง PVC เคลือบด้าน 60x140 ซม.',
+        pricingMode: 'area',
+        widthCm: 60,
+        heightCm: 140,
+        qty: 4,
+        unitPrice: 480,
+        totalPrice: 1613,
+        estimatedCost: 580,
+        depositPaid: 1613,
+        material: 'สติ๊กเกอร์ PVC หลังเทา 3M + เคลือบฟิล์มลามิเนตด้านกันรอย',
+        stage: 'design',
+        dueDate: '2026-11-19',
+        artworkApproved: false,
+        artworkApprovedAt: null,
+        artworkNotes: 'รอร้านส่งรูปภาพเมนูเนื้อวากิวไฟล์ความละเอียดสูงเพิ่มเติม 2 รูป',
+        installer: 'จัดส่งหน้างาน / ติดตั้งภายใน',
+        installLocationUrl: 'https://maps.google.com/?q=13.6881,101.0715',
+        installStatus: 'pending',
+        qcChecklist: {
+          sizeVerified: false,
+          colorChecked: false,
+          ledTested: true,
+          frameWelded: true,
+        },
+        createdAt: '2026-11-14'
+      },
+      {
+        id: 'JOB-2611-004',
+        customerName: 'หจก. บูรพา โลจิสติกส์',
+        customerPhone: '086-777-4321',
+        customerTaxId: '0203559007741',
+        customerAddress: '77/1 นิคมอุตสาหกรรมเวลโกรว์ อ.บางปะกง จ.ฉะเชิงเทรา',
+        title: 'ป้ายสัญลักษณ์ความปลอดภัย & ป้ายจราจรอลูมิเนียมคอมโพสิต',
+        pricingMode: 'lump',
+        widthCm: 120,
+        heightCm: 240,
+        qty: 6,
+        unitPrice: 2400,
+        totalPrice: 14400,
+        estimatedCost: 6900,
+        depositPaid: 14400,
+        material: 'แผ่นอลูมิเนียมคอมโพสิต 4มม. ติดสติ๊กเกอร์สะท้อนแสง 3M เกรดวิศวกรรม',
+        stage: 'completed',
+        dueDate: '2026-11-14',
+        artworkApproved: true,
+        artworkApprovedAt: '2026-11-08 09:40',
+        artworkNotes: 'ผ่านมาตรฐาน ISO โรงงานเรียบร้อย ส่งมอบพร้อมใบกำกับภาษี',
+        installer: 'ช่างสมชาย + ทีม A',
+        installLocationUrl: 'https://maps.google.com/?q=13.5678,100.9543',
+        installStatus: 'completed',
+        qcChecklist: {
+          sizeVerified: true,
+          colorChecked: true,
+          ledTested: true,
+          frameWelded: true,
+        },
+        createdAt: '2026-11-05'
+      }
+    ];
+
+    const INITIAL_INVENTORY = [
+      { id: 'INV-01', name: 'ไวนิลทึบแสง 440 แกรม (หน้ากว้าง 3.20 ม.)', category: 'ม้วนวัสดุพิมพ์', stock: 3, minStock: 5, unit: 'ม้วน (50ม.)', costPerUnit: 2450 },
+      { id: 'INV-02', name: 'สติ๊กเกอร์ PVC หลังเทา 3M (หน้ากว้าง 1.52 ม.)', category: 'ม้วนวัสดุพิมพ์', stock: 8, minStock: 4, unit: 'ม้วน (50ม.)', costPerUnit: 3200 },
+      { id: 'INV-03', name: 'แผ่นอะคริลิกสีขาวนม 3 มม. (122x244 ซม.)', category: 'แผ่นวัสดุแข็ง', stock: 12, minStock: 6, unit: 'แผ่น', costPerUnit: 1380 },
+      { id: 'INV-04', name: 'ไฟ LED โมดูล 3 ตา กันน้ำ IP67 (12V)', category: 'อุปกรณ์ไฟฟ้า', stock: 45, minStock: 100, unit: 'เม็ด', costPerUnit: 14 },
+      { id: 'INV-05', name: 'เหล็กกล่องกัลวาไนซ์ 1x1 นิ้ว หนา 1.2 มม.', category: 'โครงสร้างเหล็ก', stock: 28, minStock: 15, unit: 'เส้น (6ม.)', costPerUnit: 185 },
+      { id: 'INV-06', name: 'หมึกพิมพ์ Eco-Solvent สี Cyan / Magenta / Yellow / Black', category: 'หมึกพิมพ์', stock: 10, minStock: 8, unit: 'ลิตร', costPerUnit: 950 },
+    ];
+
+    const INITIAL_MACHINE_LOGS = [
+      { id: 'MCH-01', machine: 'เครื่องพิมพ์อิงค์เจ็ท Mimaki JV300-160', task: 'ล้างหัวพิมพ์อัตโนมัติ (Soft Clean) & เช็คระบบ Cap Top', status: 'ปกติพร้อมใช้งาน', date: '2026-11-15', technician: 'ช่างสมชาย' },
+      { id: 'MCH-02', machine: 'เครื่องตัดเลเซอร์ CNC Laser 1325 (150W)', task: 'ทำความสะอาดเลนส์รวมแสง & เติมน้ำหล่อเย็น Chiller', status: 'ปกติพร้อมใช้งาน', date: '2026-11-13', technician: 'ช่างสมชาย' },
+      { id: 'MCH-03', machine: 'เครื่องเคลือบลามิเนตเย็นอัตโนมัติ 1.60 ม.', task: 'ตรวจเช็คแรงกดลูกกลิ้งยางซิลิโคน', status: 'รอเช็คระยะรอบถัดไป', date: '2026-11-10', technician: 'คุณนลินี' },
+    ];
+
+    const KANBAN_STAGES = [
+      { id: 'design', label: '1. รอออกแบบ / อนุมัติแบบ', color: 'border-sky-500', badge: 'bg-sky-500/20 text-sky-300' },
+      { id: 'producing', label: '2. กำลังพิมพ์ / ผลิตชิ้นงาน', color: 'border-amber-500', badge: 'bg-amber-500/20 text-amber-300' },
+      { id: 'assembly', label: '3. ประกอบโครง / เก็บงาน', color: 'border-purple-500', badge: 'bg-purple-500/20 text-purple-300' },
+      { id: 'installing', label: '4. รอติดตั้ง / จัดส่ง', color: 'border-orange-500', badge: 'bg-orange-500/20 text-orange-300' },
+      { id: 'completed', label: '5. เสร็จสิ้น / ส่งมอบแล้ว', color: 'border-emerald-500', badge: 'bg-emerald-500/20 text-emerald-300' },
+    ];
+
+    // =========================================================================
+    // HELPER FUNCTIONS
+    // =========================================================================
+    const formatCurrency = (amount, canView = true) => {
+      if (!canView) return '🔒 ซ่อนตามสิทธิ์';
+      return new Intl.NumberFormat('th-TH', {
+        style: 'currency',
+        currency: 'THB',
+        minimumFractionDigits: 2,
+      }).format(amount || 0);
+    };
+
+    const formatNumber = (num) => {
+      return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num || 0);
+    };
+
+    // =========================================================================
+    // MAIN APPLICATION COMPONENT
+    // =========================================================================
+    function App() {
+      // Auth State
+      const [currentUser, setCurrentUser] = useState(null);
+      const [pinInput, setPinInput] = useState('');
+      const [loginError, setLoginError] = useState('');
+
+      // Navigation & Modals State
+      const [activeTab, setActiveTab] = useState('dashboard');
+      const [toastMsg, setToastMsg] = useState(null);
+      const [showCloudModal, setShowCloudModal] = useState(false);
+
+      // Core Business Data (Persisted in localStorage)
+      const [staffList, setStaffList] = useState(() => {
+        const saved = localStorage.getItem('signmaster_staff_v1');
+        return saved ? JSON.parse(saved) : INITIAL_STAFF;
+      });
+
+      const [jobs, setJobs] = useState(() => {
+        const saved = localStorage.getItem('signmaster_jobs_v1');
+        return saved ? JSON.parse(saved) : INITIAL_JOBS;
+      });
+
+      const [inventory, setInventory] = useState(() => {
+        const saved = localStorage.getItem('signmaster_inv_v1');
+        return saved ? JSON.parse(saved) : INITIAL_INVENTORY;
+      });
+
+      const [machineLogs, setMachineLogs] = useState(() => {
+        const saved = localStorage.getItem('signmaster_mch_v1');
+        return saved ? JSON.parse(saved) : INITIAL_MACHINE_LOGS;
+      });
+
+      // Shop Profile & Cloud Sync Config
+      const [shopInfo, setShopInfo] = useState(() => {
+        const saved = localStorage.getItem('signmaster_shop_v1');
+        return saved ? JSON.parse(saved) : {
+          name: 'บริษัท ดี.ดีไซน์ ซัพพลาย กรุ๊ป จำกัด (SIGN-MASTER PRO)',
+          branch: 'สำนักงานใหญ่',
+          taxId: '0245566001234',
+          address: '123/45 ถ.ฉะเชิงเทรา-บางปะกง ต.คลองนา อ.เมือง จ.ฉะเชิงเทรา 24000',
+          phone: '038-512-999, 089-999-8877',
+          bankInfo: 'ธนาคารกสิกรไทย เลขที่บัญชี 098-1-23456-7 ชื่อบัญชี บจก. ดี.ดีไซน์ ซัพพลาย กรุ๊ป',
+          webhookUrl: ''
+        };
+      });
+
+      const [cloudSyncStatus, setCloudSyncStatus] = useState('synced'); // 'synced' | 'syncing' | 'offline'
+
+      // Save to localStorage whenever data changes
+      useEffect(() => {
+        localStorage.setItem('signmaster_staff_v1', JSON.stringify(staffList));
+        localStorage.setItem('signmaster_jobs_v1', JSON.stringify(jobs));
+        localStorage.setItem('signmaster_inv_v1', JSON.stringify(inventory));
+        localStorage.setItem('signmaster_mch_v1', JSON.stringify(machineLogs));
+        localStorage.setItem('signmaster_shop_v1', JSON.stringify(shopInfo));
+      }, [staffList, jobs, inventory, machineLogs, shopInfo]);
+
+      // Toast helper (Never uses browser alert)
+      const notify = (message, type = 'success') => {
+        setToastMsg({ message, type });
+        setTimeout(() => setToastMsg(null), 3500);
+      };
+
+      // =========================================================================
+      // TAB 2 STATE: DYNAMIC ESTIMATOR & BREAK-EVEN ANALYZER
+      // =========================================================================
+      const [newJob, setNewJob] = useState({
+        customerName: '',
+        customerPhone: '',
+        customerTaxId: '',
+        customerAddress: '',
+        title: '',
+        pricingMode: 'area', // 'area' | 'height' | 'lump'
+        widthCm: 200,
+        heightCm: 100,
+        qty: 1,
+        unitPrice: 450,
+        material: 'ไวนิลทึบแสง 440 แกรม พิมพ์ความละเอียดสูง + พับขอบตอกตาไก่',
+        dueDate: '2026-11-22',
+        depositPaid: 0,
+        installer: 'ช่างสมชาย + ทีม A',
+        installLocationUrl: 'https://maps.google.com'
+      });
+
+      // Customizable Hidden Overhead Costs for Break-Even Analysis
+      const [costParams, setCostParams] = useState({
+        materialCostPerSqm: 120,
+        inkCostPerSqm: 45,
+        electricityPerSqm: 25,
+        hiddenLaborPerSqm: 85,
+        wastePercent: 12,
+      });
+
+      const estimatorCalc = useMemo(() => {
+        const wM = (parseFloat(newJob.widthCm) || 0) / 100;
+        const hM = (parseFloat(newJob.heightCm) || 0) / 100;
+        const hCm = parseFloat(newJob.heightCm) || 0;
+        const qty = Math.max(1, parseInt(newJob.qty) || 1);
+        const unitPrice = parseFloat(newJob.unitPrice) || 0;
+
+        const areaPerPiece = wM * hM;
+        const totalArea = areaPerPiece * qty;
+
+        let sellingPrice = 0;
+        if (newJob.pricingMode === 'area') {
+          sellingPrice = totalArea * unitPrice;
+        } else if (newJob.pricingMode === 'height') {
+          sellingPrice = hCm * qty * unitPrice;
+        } else {
+          sellingPrice = unitPrice * qty;
+        }
+
+        // Break-even calculation based on area & waste %
+        const effectiveArea = Math.max(0.5, totalArea) * (1 + (costParams.wastePercent / 100));
+        const unitOverhead =
+          costParams.materialCostPerSqm +
+          costParams.inkCostPerSqm +
+          costParams.electricityPerSqm +
+          costParams.hiddenLaborPerSqm;
+
+        const breakEvenFloor = effectiveArea * unitOverhead;
+        const netProfit = sellingPrice - breakEvenFloor;
+        const netMarginPct = sellingPrice > 0 ? (netProfit / sellingPrice) * 100 : 0;
+
+        return {
+          totalArea,
+          sellingPrice,
+          breakEvenFloor,
+          netProfit,
+          netMarginPct,
+          isBelowBreakEven: sellingPrice < breakEvenFloor
+        };
+      }, [newJob, costParams]);
+
+      const handleCreateJob = (e) => {
+        e.preventDefault();
+        if (!currentUser?.canEditJobs) {
+          notify('คุณไม่มีสิทธิ์สร้างหรือแก้ไขใบงาน', 'error');
+          return;
+        }
+        if (!newJob.customerName.trim() || !newJob.title.trim()) {
+          notify('กรุณากรอกชื่อลูกค้าและรายละเอียดชิ้นงาน', 'error');
+          return;
+        }
+
+        const jobId = `JOB-2611-${String(jobs.length + 1).padStart(3, '0')}`;
+        const created = {
+          ...newJob,
+          id: jobId,
+          totalPrice: Math.round(estimatorCalc.sellingPrice),
+          estimatedCost: Math.round(estimatorCalc.breakEvenFloor),
+          stage: 'design',
+          artworkApproved: false,
+          artworkApprovedAt: null,
+          artworkNotes: 'รอฝ่ายกราฟิกขึ้นแบบและส่งให้ลูกค้าตรวจอนุมัติ',
+          installStatus: 'pending',
+          qcChecklist: {
+            sizeVerified: false,
+            colorChecked: false,
+            ledTested: false,
+            frameWelded: false,
+          },
+          createdAt: new Date().toISOString().split('T')[0]
+        };
+
+        setJobs([created, ...jobs]);
+        notify(`เปิดใบงาน ${jobId} สำเร็จ! ส่งเข้ากระดานติดตามงานแล้ว`);
+        setNewJob({
+          ...newJob,
+          customerName: '',
+          customerPhone: '',
+          customerTaxId: '',
+          customerAddress: '',
+          title: '',
+          depositPaid: 0
+        });
+        setActiveTab('kanban');
+      };
+
+      // =========================================================================
+      // TAB 3 STATE: KANBAN DRAG & DROP + QC MODAL
+      // =========================================================================
+      const [draggedJobId, setDraggedJobId] = useState(null);
+      const [dragOverStage, setDragOverStage] = useState(null);
+      const [selectedKanbanJob, setSelectedKanbanJob] = useState(null);
+      const [sortByDueDate, setSortByDueDate] = useState(true);
+
+      const handleDragStart = (e, jobId) => {
+        if (!currentUser?.canEditJobs) return;
+        setDraggedJobId(jobId);
+        e.dataTransfer.setData('text/plain', jobId);
+      };
+
+      const handleDragOver = (e, stageId) => {
+        e.preventDefault();
+        if (dragOverStage !== stageId) {
+          setDragOverStage(stageId);
+        }
+      };
+
+      const handleDrop = (e, targetStageId) => {
+        e.preventDefault();
+        setDragOverStage(null);
+        if (!currentUser?.canEditJobs) {
+          notify('คุณไม่มีสิทธิ์ย้ายสถานะใบงาน', 'error');
+          return;
+        }
+        const jobId = e.dataTransfer.getData('text/plain') || draggedJobId;
+        if (!jobId) return;
+
+        setJobs(prev => prev.map(j => j.id === jobId ? { ...j, stage: targetStageId } : j));
+        setDraggedJobId(null);
+        notify(`อัปเดตสถานะใบงาน ${jobId} เรียบร้อยแล้ว`);
+      };
+
+      const updateJobDetails = (updatedJob) => {
+        setJobs(prev => prev.map(j => j.id === updatedJob.id ? updatedJob : j));
+        setSelectedKanbanJob(null);
+        notify(`บันทึกข้อมูลและผลตรวจ QC ของ ${updatedJob.id} แล้ว`);
+      };
+
+      // =========================================================================
+      // TAB 4: ARTWORK PROOFING
+      // =========================================================================
+      const handleApproveArtwork = (jobId) => {
+        if (!currentUser?.canEditJobs) {
+          notify('คุณไม่มีสิทธิ์อนุมัติแบบผลิต', 'error');
+          return;
+        }
+        const nowStr = new Date().toLocaleString('th-TH', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit'
+        });
+        setJobs(prev => prev.map(j => {
+          if (j.id === jobId) {
+            return {
+              ...j,
+              artworkApproved: true,
+              artworkApprovedAt: nowStr,
+              stage: j.stage === 'design' ? 'producing' : j.stage
+            };
+          }
+          return j;
+        }));
+        notify(`ยืนยันอนุมัติแบบผลิต ${jobId} แล้ว! ย้ายเข้าคิวผลิตอัตโนมัติ`);
+      };
+
+      // =========================================================================
+      // TAB 5: INSTALLATION & GPS CHECK-IN
+      // =========================================================================
+      const handleCompleteInstallation = (jobId) => {
+        if (!currentUser?.canEditJobs) {
+          notify('คุณไม่มีสิทธิ์ปิดงานติดตั้ง', 'error');
+          return;
+        }
+        setJobs(prev => prev.map(j => {
+          if (j.id === jobId) {
+            return {
+              ...j,
+              installStatus: 'completed',
+              stage: 'completed'
+            };
+          }
+          return j;
+        }));
+        notify(`เช็คอินหน้างานและปิดงานติดตั้ง ${jobId} เรียบร้อย!`);
+      };
+
+      // =========================================================================
+      // TAB 6: INVENTORY & MACHINE LOGS
+      // =========================================================================
+      const [newMachineLog, setNewMachineLog] = useState({
+        machine: 'เครื่องพิมพ์อิงค์เจ็ท Mimaki JV300-160',
+        task: '',
+        status: 'ปกติพร้อมใช้งาน'
+      });
+
+      const handleAdjustStock = (invId, delta) => {
+        if (!currentUser?.canManageInventory) {
+          notify('เฉพาะผู้ที่มีสิทธิ์จัดการคลังวัสดุเท่านั้น', 'error');
+          return;
+        }
+        setInventory(prev => prev.map(item => {
+          if (item.id === invId) {
+            const nextStock = Math.max(0, item.stock + delta);
+            return { ...item, stock: nextStock };
+          }
+          return item;
+        }));
+        notify(`อัปเดตยอดสต็อกวัสดุเรียบร้อย`);
+      };
+
+      const handleAddMachineLog = (e) => {
+        e.preventDefault();
+        if (!newMachineLog.task.trim()) return;
+        const entry = {
+          id: `MCH-${Date.now()}`,
+          machine: newMachineLog.machine,
+          task: newMachineLog.task,
+          status: newMachineLog.status,
+          date: new Date().toISOString().split('T')[0],
+          technician: currentUser.name
+        };
+        setMachineLogs([entry, ...machineLogs]);
+        setNewMachineLog({ ...newMachineLog, task: '' });
+        notify('บันทึกประวัติการบำรุงรักษาเครื่องจักรแล้ว');
+      };
+
+      // =========================================================================
+      // TAB 7: DOCUMENTS & TAX ENGINE (A4 PRINTABLE)
+      // =========================================================================
+      const [selectedDocJobId, setSelectedDocJobId] = useState(INITIAL_JOBS[0].id);
+      const [docType, setDocType] = useState('quotation'); // 'work_order' | 'quotation' | 'invoice' | 'tax_invoice' | 'deposit' | 'qr_ticket'
+      const [includeVat, setIncludeVat] = useState(true);
+      const [includeWht, setIncludeWht] = useState(false);
+
+      const selectedDocJob = useMemo(() => {
+        return jobs.find(j => j.id === selectedDocJobId) || jobs[0];
+      }, [jobs, selectedDocJobId]);
+
+      const docFinancials = useMemo(() => {
+        if (!selectedDocJob) return { subtotal: 0, vat: 0, wht: 0, grandTotal: 0, netPayable: 0 };
+        const baseAmount = docType === 'deposit'
+          ? (selectedDocJob.depositPaid || Math.round(selectedDocJob.totalPrice * 0.5))
+          : selectedDocJob.totalPrice;
+
+        const vat = includeVat ? baseAmount * 0.07 : 0;
+        const grandTotal = baseAmount + vat;
+        const wht = includeWht ? baseAmount * 0.03 : 0;
+        const netPayable = grandTotal - wht;
+
+        return { subtotal: baseAmount, vat, grandTotal, wht, netPayable };
+      }, [selectedDocJob, docType, includeVat, includeWht]);
+
+      const openJobDocument = (jobId, type = 'quotation') => {
+        setSelectedDocJobId(jobId);
+        setDocType(type);
+        setActiveTab('documents');
+      };
+
+      // =========================================================================
+      // TAB 8: STAFF & RBAC PERMISSIONS
+      // =========================================================================
+      const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+      const [newStaffForm, setNewStaffForm] = useState({
+        name: '',
+        role: 'Sales & Design',
+        pin: '',
+        department: 'ขาย & ออกแบบ',
+        canViewPrices: true,
+        canEditJobs: true,
+        canManageInventory: false,
+      });
+
+      const handleTogglePermission = (staffId, field) => {
+        if (currentUser?.role !== 'Admin Master') {
+          notify('เฉพาะ Admin Master เท่านั้นที่แก้ไขสิทธิ์พนักงานได้', 'error');
+          return;
+        }
+        setStaffList(prev => prev.map(stf => {
+          if (stf.id === staffId) {
+            return { ...stf, [field]: !stf[field] };
+          }
+          return stf;
+        }));
+        notify('อัปเดตสิทธิ์การเข้าถึงเรียบร้อย');
+      };
+
+      const handleCreateStaff = (e) => {
+        e.preventDefault();
+        if (!newStaffForm.name.trim() || newStaffForm.pin.length !== 4) {
+          notify('กรุณากรอกชื่อพนักงานและรหัส PIN 4 หลัก', 'error');
+          return;
+        }
+        if (staffList.some(s => s.pin === newStaffForm.pin)) {
+          notify('รหัส PIN นี้ถูกใช้งานแล้ว กรุณาใช้รหัสอื่น', 'error');
+          return;
+        }
+        const created = {
+          ...newStaffForm,
+          id: `STF-${String(staffList.length + 1).padStart(3, '0')}`
+        };
+        setStaffList([...staffList, created]);
+        setShowAddStaffModal(false);
+        setNewStaffForm({
+          name: '', role: 'Sales & Design', pin: '', department: 'ขาย & ออกแบบ',
+          canViewPrices: true, canEditJobs: true, canManageInventory: false
+        });
+        notify(`เพิ่มพนักงาน ${created.name} เข้าระบบแล้ว`);
+      };
+
+      // =========================================================================
+      // LOGIN HANDLERS
+      // =========================================================================
+      const handleLoginWithPin = (pinToVerify) => {
+        const found = staffList.find(s => s.pin === pinToVerify);
+        if (found) {
+          setCurrentUser(found);
+          setPinInput('');
+          setLoginError('');
+          notify(`ยินดีต้อนรับ ${found.name} (${found.role})`);
+        } else {
+          setLoginError('รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+        }
+      };
+
+      const handlePinDigit = (digit) => {
+        if (pinInput.length < 4) {
+          const next = pinInput + digit;
+          setPinInput(next);
+          if (next.length === 4) {
+            handleLoginWithPin(next);
+          }
+        }
+      };
+
+      // =========================================================================
+      // CLOUD BACKUP EXPORT / IMPORT
+      // =========================================================================
+      const handleExportJson = () => {
+        const backupData = {
+          exportedAt: new Date().toISOString(),
+          shopInfo,
+          staffList,
+          jobs,
+          inventory,
+          machineLogs
+        };
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SIGNMASTER-BACKUP-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        notify('ดาวน์โหลดไฟล์สำรองข้อมูล JSON เรียบร้อยแล้ว');
+      };
+
+      const handleImportJson = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const parsed = JSON.parse(evt.target.result);
+            if (parsed.jobs) setJobs(parsed.jobs);
+            if (parsed.inventory) setInventory(parsed.inventory);
+            if (parsed.staffList) setStaffList(parsed.staffList);
+            if (parsed.shopInfo) setShopInfo(parsed.shopInfo);
+            if (parsed.machineLogs) setMachineLogs(parsed.machineLogs);
+            notify('กู้คืนข้อมูลจากไฟล์สำรองสำเร็จ!');
+            setShowCloudModal(false);
+          } catch (err) {
+            notify('ไฟล์สำรองข้อมูลไม่ถูกต้อง', 'error');
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      const handleTriggerCloudWebhook = async () => {
+        if (!shopInfo.webhookUrl) {
+          notify('บันทึกการตั้งค่าแล้ว (หากต้องการซิงค์อัตโนมัติ กรุณาระบุ Webhook URL)');
+          setShowCloudModal(false);
+          return;
+        }
+        setCloudSyncStatus('syncing');
+        try {
+          await fetch(shopInfo.webhookUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ timestamp: new Date().toISOString(), jobs, inventory })
+          });
+          setCloudSyncStatus('synced');
+          notify('ซิงค์ข้อมูลขึ้น Cloud Webhook สำเร็จ!');
+        } catch (err) {
+          setCloudSyncStatus('offline');
+          notify('ไม่สามารถเชื่อมต่อ Webhook ได้ แต่ข้อมูลถูกบันทึกในเครื่องแล้ว', 'error');
+        }
+        setShowCloudModal(false);
+      };
+
+      // =========================================================================
+      // KPI METRICS COMPUTATION
+      // =========================================================================
+      const kpiMetrics = useMemo(() => {
+        const totalRevenue = jobs.reduce((acc, j) => acc + (j.totalPrice || 0), 0);
+        const totalCost = jobs.reduce((acc, j) => acc + (j.estimatedCost || 0), 0);
+        const netProfit = totalRevenue - totalCost;
+        const activeJobsCount = jobs.filter(j => j.stage !== 'completed').length;
+        const completedJobsCount = jobs.filter(j => j.stage === 'completed').length;
+        const lowStockCount = inventory.filter(i => i.stock <= i.minStock).length;
+
+        return {
+          totalRevenue,
+          netProfit,
+          activeJobsCount,
+          completedJobsCount,
+          lowStockCount
+        };
+      }, [jobs, inventory]);
+
+      // =========================================================================
+      // RENDER: LOGIN SCREEN
+      // =========================================================================
+      if (!currentUser) {
+        return (
+          <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+            {/* Ambient Background Glow */}
+            <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div className="w-full max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl z-10">
+              {/* Brand Header */}
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 text-slate-950 font-bold text-2xl shadow-lg shadow-amber-500/20 mb-3">
+                  SM
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight text-white">
+                  SIGN-MASTER <span className="text-amber-400">ERP PRO</span>
+                </h1>
+                <p className="text-slate-400 text-sm mt-1">ระบบบริหารจัดการร้านป้ายโฆษณาครบวงจร</p>
+              </div>
+
+              {/* PIN Display Dots */}
+              <div className="mb-6">
+                <label className="block text-center text-xs uppercase tracking-wider text-slate-400 mb-3">
+                  กรุณากรอกรหัส PIN 4 หลักเพื่อเข้าสู่ระบบ
+                </label>
+                <div className="flex justify-center gap-4">
+                  {[0, 1, 2, 3].map(idx => (
+                    <div
+                      key={idx}
+                      className={`w-12 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold transition-all ${
+                        pinInput.length > idx
+                          ? 'border-amber-400 bg-amber-400/10 text-amber-400'
+                          : 'border-slate-700 bg-slate-800/60 text-slate-600'
+                      }`}
+                    >
+                      {pinInput.length > idx ? '●' : ''}
+                    </div>
+                  ))}
+                </div>
+                {loginError && (
+                  <p className="text-rose-400 text-xs text-center mt-3 font-medium">{loginError}</p>
+                )}
+              </div>
+
+              {/* Numeric Keypad */}
+              <div className="grid grid-cols-3 gap-2.5 mb-6">
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
+                  <button
+                    key={num}
+                    onClick={() => handlePinDigit(num)}
+                    className="py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition border border-slate-700/60"
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button
+                  onClick={() => { setPinInput(''); setLoginError(''); }}
+                  className="py-3.5 rounded-xl bg-slate-800/60 hover:bg-rose-500/20 text-rose-400 text-sm font-medium transition border border-slate-700/60"
+                >
+                  ล้างรหัส
+                </button>
+                <button
+                  onClick={() => handlePinDigit('0')}
+                  className="py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-white text-xl font-semibold transition border border-slate-700/60"
+                >
+                  0
+                </button>
+                <button
+                  onClick={() => setPinInput(prev => prev.slice(0, -1))}
+                  className="py-3.5 rounded-xl bg-slate-800/60 hover:bg-slate-700 text-slate-300 text-sm font-medium transition border border-slate-700/60"
+                >
+                  ⌫ ลบ
+                </button>
+              </div>
+
+              {/* Quick Demo Login Buttons */}
+              <div className="border-t border-slate-800 pt-5">
+                <p className="text-xs text-slate-400 text-center mb-3 font-medium">
+                  ⚡ ปุ่มทดลองเข้าใช้งานด่วน (1-Click Demo Login)
+                </p>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handleLoginWithPin('9999')}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-left transition group"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-amber-300 group-hover:text-amber-200">
+                        👑 Admin Master (เจ้าของร้าน)
+                      </div>
+                      <div className="text-[11px] text-slate-400">เห็นต้นทุน/กำไร • จัดการคลัง • ตั้งค่าสิทธิ์</div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs">
+                      PIN: 9999
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => handleLoginWithPin('1111')}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-left transition group"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-sky-300 group-hover:text-sky-200">
+                        💼 ฝ่ายขาย & กราฟิก (Sales Staff)
+                      </div>
+                      <div className="text-[11px] text-slate-400">รับงาน/คิดราคา • ออกบิล • ห้ามแก้สต็อกคลัง</div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-sky-500 text-slate-950 font-bold text-xs">
+                      PIN: 1111
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => handleLoginWithPin('2222')}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-left transition group"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-emerald-300 group-hover:text-emerald-200">
+                        🛠️ ช่างผลิต & ทีมติดตั้ง (Production)
+                      </div>
+                      <div className="text-[11px] text-slate-400">ซ่อนตัวเลขราคา/กำไร • อัปเดต Kanban & GPS</div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs">
+                      PIN: 2222
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // =========================================================================
+      // RENDER: MAIN ERP WORKSPACE
+      // =========================================================================
+      const navItems = [
+        { id: 'dashboard', label: 'แดชบอร์ด & กำไร', icon: '📊' },
+        { id: 'estimator', label: 'รับงาน & คำนวณราคา', icon: '🧮' },
+        { id: 'kanban', label: 'ติดตามงาน Kanban', icon: '📋' },
+        { id: 'proofing', label: 'ตรวจอนุมัติแบบ', icon: '🎨' },
+        { id: 'installation', label: 'ทีมติดตั้ง & GPS', icon: '🚚' },
+        { id: 'inventory', label: 'คลังวัสดุ & เครื่องจักร', icon: '📦' },
+        { id: 'documents', label: 'เอกสาร & ใบกำกับภาษี', icon: '🧾' },
+        { id: 'staff', label: 'ทีมงาน & สิทธิ์ผู้ใช้', icon: '🔐' },
+      ];
+
+      return (
+        <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+          {/* Toast Notification */}
+          {toastMsg && (
+            <div className="fixed bottom-5 right-5 z-50 no-print animate-bounce">
+              <div className={`px-4 py-3 rounded-2xl shadow-2xl border flex items-center gap-3 text-sm font-medium ${
+                toastMsg.type === 'error'
+                  ? 'bg-rose-950/95 border-rose-500 text-rose-200'
+                  : 'bg-emerald-950/95 border-emerald-500 text-emerald-200'
+              }`}>
+                <span>{toastMsg.type === 'error' ? '⚠️' : '✅'}</span>
+                <span>{toastMsg.message}</span>
+              </div>
+            </div>
+          )}
+
+          {/* TOP HEADER */}
+          <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 no-print">
+            <div className="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+              {/* Left Brand */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 text-slate-950 font-extrabold flex items-center justify-center text-lg shadow">
+                  SM
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white tracking-tight text-base sm:text-lg">
+                      SIGN-MASTER <span className="text-amber-400">ERP PRO</span>
+                    </span>
+                    <span className="hidden md:inline-block px-2 py-0.5 text-[11px] rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                      {shopInfo.name}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400">ระบบบริหารจัดการโรงงานผลิตป้ายโฆษณาและงานติดตั้ง</p>
+                </div>
+              </div>
+
+              {/* Right Controls: User Badge, Cloud Sync, Logout */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Active Role Badge */}
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                  <div className="text-xs">
+                    <div className="font-semibold text-white">{currentUser.name}</div>
+                    <div className="text-[10px] text-amber-400">{currentUser.role}</div>
+                  </div>
+                </div>
+
+                {/* Cloud Sync Button */}
+                <button
+                  onClick={() => setShowCloudModal(true)}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 flex items-center gap-1.5 transition"
+                  title="สำรองข้อมูลและซิงค์ Cloud"
+                >
+                  <span className={`w-2 h-2 rounded-full ${cloudSyncStatus === 'synced' ? 'bg-sky-400' : 'bg-amber-400'}`}></span>
+                  <span className="hidden sm:inline">Cloud & Backup</span>
+                  <span>☁️</span>
+                </button>
+
+                {/* Logout Button */}
+                <button
+                  onClick={() => setCurrentUser(null)}
+                  className="px-3 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 text-xs font-semibold transition"
+                >
+                  ออกจากระบบ
+                </button>
+              </div>
+            </div>
+
+            {/* NAVIGATION TABS */}
+            <nav className="bg-slate-900/80 border-t border-slate-800/80 overflow-x-auto">
+              <div className="max-w-[1600px] mx-auto px-4 flex items-center gap-1 py-1.5">
+                {navItems.map(tab => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap flex items-center gap-2 transition ${
+                        isActive
+                          ? 'bg-amber-500 text-slate-950 font-semibold shadow-lg shadow-amber-500/20'
+                          : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <span>{tab.icon}</span>
+                      <span>{tab.label}</span>
+                      {tab.id === 'inventory' && kpiMetrics.lowStockCount > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500 text-white font-bold">
+                          {kpiMetrics.lowStockCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+          </header>
+
+          {/* MAIN CONTENT AREA */}
+          <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 py-6">
+            {/* ================================================================= */}
+            {/* TAB 1: DASHBOARD & PROFIT                                         */}
+            {/* ================================================================= */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-6">
+                {/* Permission Notice Banner if prices hidden */}
+                {!currentUser.canViewPrices && (
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-amber-200 text-sm">
+                    <span className="text-xl">🔒</span>
+                    <div>
+                      <strong>โหมดจำกัดสิทธิ์การมองเห็นตัวเลขทางการเงิน:</strong> บัญชีของคุณ ({currentUser.role}) ถูกตั้งค่าให้ซ่อนยอดขาย ต้นทุน และกำไรสุทธิ
+                    </div>
+                  </div>
+                )}
+
+                {/* KPI Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
+                      <span>ยอดขายรวมทั้งหมด (Total Revenue)</span>
+                      <span className="text-lg">💰</span>
+                    </div>
+                    <div className={`text-2xl font-bold ${currentUser.canViewPrices ? 'text-white' : 'text-amber-400'}`}>
+                      {formatCurrency(kpiMetrics.totalRevenue, currentUser.canViewPrices)}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">จากใบงานทั้งหมด {jobs.length} รายการ</div>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
+                      <span>กำไรขั้นต้นประเมิน (Estimated Profit)</span>
+                      <span className="text-lg">📈</span>
+                    </div>
+                    <div className={`text-2xl font-bold ${currentUser.canViewPrices ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {formatCurrency(kpiMetrics.netProfit, currentUser.canViewPrices)}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">หลังหักต้นทุนวัสดุ/หมึก/ค่าไฟแฝง</div>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
+                      <span>งานกำลังดำเนินการ (Active Jobs)</span>
+                      <span className="text-lg">⚙️</span>
+                    </div>
+                    <div className="text-2xl font-bold text-sky-400">
+                      {kpiMetrics.activeJobsCount} <span className="text-sm font-normal text-slate-400">ใบงาน</span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">รอผลิต / ประกอบโครง / รอติดตั้ง</div>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                    <div className="flex items-center justify-between text-slate-400 text-xs mb-2">
+                      <span>ส่งมอบเสร็จสิ้น (Completed)</span>
+                      <span className="text-lg">✅</span>
+                    </div>
+                    <div className="text-2xl font-bold text-amber-400">
+                      {kpiMetrics.completedJobsCount} <span className="text-sm font-normal text-slate-400">ใบงาน</span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">วัสดุใกล้หมดคลัง: {kpiMetrics.lowStockCount} รายการ</div>
+                  </div>
+                </div>
+
+                {/* Recent Jobs Table */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                  <div className="p-5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-base font-bold text-white">รายการใบสั่งผลิตล่าสุด (Recent Signage Jobs)</h2>
+                      <p className="text-xs text-slate-400">สามารถกดออกเอกสาร A4 หรือพิมพ์ QR Code ติดม้วนงานได้ทันที</p>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('estimator')}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs transition"
+                    >
+                      + รับงานใหม่ & คำนวณราคา
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-800/60 text-slate-400 text-xs uppercase">
+                          <th className="py-3 px-4">รหัสใบงาน</th>
+                          <th className="py-3 px-4">ลูกค้า / รายละเอียดป้าย</th>
+                          <th className="py-3 px-4">ขนาด / จำนวน</th>
+                          <th className="py-3 px-4">สถานะงาน</th>
+                          <th className="py-3 px-4 text-right">ยอดสุทธิ</th>
+                          <th className="py-3 px-4 text-center">จัดการเอกสารด่วน</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 text-sm">
+                        {jobs.map(job => {
+                          const stageObj = KANBAN_STAGES.find(s => s.id === job.stage);
+                          return (
+                            <tr key={job.id} className="hover:bg-slate-800/40 transition">
+                              <td className="py-3.5 px-4 font-mono text-xs text-amber-400 font-semibold whitespace-nowrap">
+                                {job.id}
+                                <div className="text-[10px] text-slate-500 mt-0.5">ส่ง: {job.dueDate}</div>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <div className="font-semibold text-white">{job.customerName}</div>
+                                <div className="text-xs text-slate-400">{job.title}</div>
+                              </td>
+                              <td className="py-3.5 px-4 text-xs text-slate-300 whitespace-nowrap">
+                                {job.widthCm} × {job.heightCm} ซม. ({job.qty} ชุด)
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${stageObj?.badge}`}>
+                                  {stageObj?.label}
+                                </span>
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-semibold whitespace-nowrap">
+                                {formatCurrency(job.totalPrice, currentUser.canViewPrices)}
+                              </td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => openJobDocument(job.id, 'qr_ticket')}
+                                    className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-sky-300 font-medium transition"
+                                  >
+                                    🏷️ QR Ticket
+                                  </button>
+                                  <button
+                                    onClick={() => openJobDocument(job.id, 'quotation')}
+                                    className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-xs text-amber-300 font-medium transition"
+                                  >
+                                    📄 ออกเอกสาร
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================================================================= */}
+            {/* TAB 2: DYNAMIC ESTIMATOR & BREAK-EVEN ENGINE                      */}
+            {/* ================================================================= */}
+            {activeTab === 'estimator' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left Form: Job Details & Pricing Mode */}
+                <form onSubmit={handleCreateJob} className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
+                  <div className="border-b border-slate-800 pb-4">
+                    <h2 className="text-lg font-bold text-white">🧮 รับงานใหม่ & คำนวณราคาป้ายอัจฉริยะ</h2>
+                    <p className="text-xs text-slate-400">รองรับทั้งงานพิมพ์ตารางเมตร งานตัวอักษรยกขอบคิดตามความสูง และงานเหมาติดตั้ง</p>
+                  </div>
+
+                  {/* Customer Info */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">ชื่อลูกค้า / บริษัท *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="เช่น บจก. สยามคอฟฟี่"
+                        value={newJob.customerName}
+                        onChange={e => setNewJob({ ...newJob, customerName: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">เบอร์โทรศัพท์ติดต่อ</label>
+                      <input
+                        type="text"
+                        placeholder="08X-XXX-XXXX"
+                        value={newJob.customerPhone}
+                        onChange={e => setNewJob({ ...newJob, customerPhone: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">เลขประจำตัวผู้เสียภาษี (สำหรับออกใบกำกับฯ)</label>
+                      <input
+                        type="text"
+                        placeholder="01055XXXXXXXX"
+                        value={newJob.customerTaxId}
+                        onChange={e => setNewJob({ ...newJob, customerTaxId: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">กำหนดส่งงาน / ติดตั้ง</label>
+                      <input
+                        type="date"
+                        value={newJob.dueDate}
+                        onChange={e => setNewJob({ ...newJob, dueDate: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">ที่อยู่ลูกค้า / สถานที่ติดตั้งหน้างาน</label>
+                    <input
+                      type="text"
+                      placeholder="เลขที่ ถนน ตำบล อำเภอ จังหวัด..."
+                      value={newJob.customerAddress}
+                      onChange={e => setNewJob({ ...newJob, customerAddress: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  {/* Job Title & Material */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">ชื่องานป้าย / รายการสั่งทำ *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="เช่น ป้ายหน้าร้านอะคริลิกยกขอบไฟ LED"
+                        value={newJob.title}
+                        onChange={e => setNewJob({ ...newJob, title: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">สเปควัสดุและอุปกรณ์</label>
+                      <input
+                        type="text"
+                        value={newJob.material}
+                        onChange={e => setNewJob({ ...newJob, material: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pricing Mode Selector */}
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-2">เลือกสูตรคำนวณราคาป้าย (Pricing Formula)</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 'area', label: '1. คิดตามพื้นที่ (ตร.ม.)', desc: 'ไวนิล / สติ๊กเกอร์ / โครง' },
+                        { id: 'height', label: '2. ตัวอักษรยกขอบ (ซม.)', desc: 'คิดตามความสูงตัวอักษร' },
+                        { id: 'lump', label: '3. ราคาเหมาต่อชุด', desc: 'งานป้ายชุด / งานติดตั้งเหมา' },
+                      ].map(mode => (
+                        <button
+                          type="button"
+                          key={mode.id}
+                          onClick={() => setNewJob({ ...newJob, pricingMode: mode.id })}
+                          className={`p-3 rounded-xl border text-left transition ${
+                            newJob.pricingMode === mode.id
+                              ? 'bg-amber-500/20 border-amber-400 text-amber-200'
+                              : 'bg-slate-800/60 border-slate-700 text-slate-300 hover:bg-slate-800'
+                          }`}
+                        >
+                          <div className="text-xs font-bold">{mode.label}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">{mode.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dimensions & Rate */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-800/50 p-4 rounded-2xl border border-slate-800">
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">ความกว้าง (ซม.)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newJob.widthCm}
+                        onChange={e => setNewJob({ ...newJob, widthCm: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">ความสูง (ซม.)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newJob.heightCm}
+                        onChange={e => setNewJob({ ...newJob, heightCm: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">จำนวน (ชิ้น/ชุด)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newJob.qty}
+                        onChange={e => setNewJob({ ...newJob, qty: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-amber-400 mb-1 font-medium">
+                        {newJob.pricingMode === 'area' ? 'ราคา/ตร.ม. (บาท)' : newJob.pricingMode === 'height' ? 'ราคา/ซม.สูง (บาท)' : 'ราคาเหมา/ชุด (บาท)'}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newJob.unitPrice}
+                        onChange={e => setNewJob({ ...newJob, unitPrice: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-amber-500/50 text-sm text-amber-300 font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">เงินมัดจำรับแล้ว (บาท)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newJob.depositPaid}
+                        onChange={e => setNewJob({ ...newJob, depositPaid: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">ทีมช่างติดตั้ง / จัดส่ง</label>
+                      <input
+                        type="text"
+                        value={newJob.installer}
+                        onChange={e => setNewJob({ ...newJob, installer: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 transition"
+                  >
+                    ✅ บันทึกเปิดใบงานและส่งเข้ากระดาน Kanban
+                  </button>
+                </form>
+
+                {/* Right Panel: Live Break-Even & Cost Analyzer */}
+                <div className="lg:col-span-5 space-y-5">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-base font-bold text-white">📉 วิเคราะห์จุดคุ้มทุนสด (Live Break-Even)</h3>
+                        <p className="text-xs text-slate-400">คำนวณต้นทุนแฝงและเผื่อเศษวัสดุตัด (Nesting Waste)</p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-lg bg-sky-500/15 text-sky-300 text-xs font-mono">
+                        พื้นที่รวม {formatNumber(estimatorCalc.totalArea)} ตร.ม.
+                      </span>
+                    </div>
+
+                    {currentUser.canViewPrices ? (
+                      <>
+                        {/* Adjustable Hidden Cost Parameters */}
+                        <div className="grid grid-cols-2 gap-3 mb-5 bg-slate-800/50 p-4 rounded-xl border border-slate-800 text-xs">
+                          <div>
+                            <label className="text-slate-400 block mb-1">ค่าวัสดุหลัก (บาท/ตร.ม.)</label>
+                            <input
+                              type="number"
+                              value={costParams.materialCostPerSqm}
+                              onChange={e => setCostParams({ ...costParams, materialCostPerSqm: parseFloat(e.target.value) || 0 })}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-400 block mb-1">ค่าหมึกพิมพ์ (บาท/ตร.ม.)</label>
+                            <input
+                              type="number"
+                              value={costParams.inkCostPerSqm}
+                              onChange={e => setCostParams({ ...costParams, inkCostPerSqm: parseFloat(e.target.value) || 0 })}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-400 block mb-1">ค่าไฟเครื่องจักร (บาท/ตร.ม.)</label>
+                            <input
+                              type="number"
+                              value={costParams.electricityPerSqm}
+                              onChange={e => setCostParams({ ...costParams, electricityPerSqm: parseFloat(e.target.value) || 0 })}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-slate-400 block mb-1">ค่าแรงประกอบแฝง (บาท/ตร.ม.)</label>
+                            <input
+                              type="number"
+                              value={costParams.hiddenLaborPerSqm}
+                              onChange={e => setCostParams({ ...costParams, hiddenLaborPerSqm: parseFloat(e.target.value) || 0 })}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-slate-400 flex justify-between mb-1">
+                              <span>เผื่อเศษวัสดุเสีย (Nesting Waste %)</span>
+                              <span className="text-amber-400 font-bold">{costParams.wastePercent}%</span>
+                            </label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="35"
+                              value={costParams.wastePercent}
+                              onChange={e => setCostParams({ ...costParams, wastePercent: parseInt(e.target.value) || 0 })}
+                              className="w-full accent-amber-500"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Financial Result Summary */}
+                        <div className="space-y-3 border-t border-slate-800 pt-4">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-400">ราคาขายเสนอให้ลูกค้า (ก่อน VAT):</span>
+                            <span className="text-xl font-bold text-white">{formatCurrency(estimatorCalc.sellingPrice)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-400">ราคาขั้นต่ำจุดคุ้มทุน (Break-Even Floor):</span>
+                            <span className="font-semibold text-amber-400">{formatCurrency(estimatorCalc.breakEvenFloor)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-slate-400">กำไรสุทธิประเมิน (Net Profit):</span>
+                            <span className={`text-lg font-bold ${estimatorCalc.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              {formatCurrency(estimatorCalc.netProfit)} ({estimatorCalc.netMarginPct.toFixed(1)}%)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Margin Warning Alert */}
+                        {estimatorCalc.isBelowBreakEven ? (
+                          <div className="mt-4 p-3.5 rounded-xl bg-rose-500/20 border border-rose-500 text-rose-200 text-xs flex items-start gap-2.5">
+                            <span className="text-lg">🚨</span>
+                            <div>
+                              <strong>คำเตือนราคาต่ำกว่าจุดคุ้มทุน!</strong> ราคาเสนอขายต่ำกว่าต้นทุนรวมแฝงและเศษวัสดุ กรุณาปรับเพิ่มราคาต่อหน่วยก่อนเสนอราคา
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-4 p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-xs flex items-start gap-2.5">
+                            <span className="text-lg">🛡️</span>
+                            <div>
+                              <strong>ราคาปลอดภัยได้กำไรตามเกณฑ์:</strong> ครอบคลุมต้นทุนวัสดุ หมึกพิมพ์ ค่าไฟ และเผื่อเศษวัสดุ {costParams.wastePercent}% เรียบร้อยแล้ว
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="p-8 text-center bg-slate-800/50 rounded-2xl border border-slate-800">
+                        <div className="text-3xl mb-2">🔒</div>
+                        <div className="text-sm font-semibold text-amber-400">ซ่อนการคำนวณต้นทุนและกำไรตามสิทธิ์ผู้ใช้</div>
+                        <p className="text-xs text-slate-400 mt-1">ติดต่อผู้ดูแลระบบหากต้องการเข้าถึงข้อมูลต้นทุน</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================================================================= */}
+            {/* TAB 3: 5-STAGE KANBAN BOARD (HTML5 DRAG & DROP + QC MODAL)        */}
+            {/* ================================================================= */}
+            {activeTab === 'kanban' && (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                  <div>
+                    <h2 className="text-base font-bold text-white">📋 กระดานติดตามสายการผลิต 5 ขั้นตอน (Kanban Workflow)</h2>
+                    <p className="text-xs text-slate-400">คลิกลากการ์ดใบงานข้ามคอลัมน์เพื่อเปลี่ยนสถานะ หรือกดปุ่ม "จัดการ / ตรวจ QC"</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSortByDueDate(!sortByDueDate)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition ${
+                        sortByDueDate
+                          ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                          : 'bg-slate-800 border-slate-700 text-slate-300'
+                      }`}
+                    >
+                      📅 เรียงตามกำหนดส่งงาน: {sortByDueDate ? 'เปิด' : 'ปิด'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 5 Columns Horizontal Scroll on Mobile, Grid on Large Screen */}
+                <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 items-start">
+                  {KANBAN_STAGES.map(stage => {
+                    let stageJobs = jobs.filter(j => j.stage === stage.id);
+                    if (sortByDueDate) {
+                      stageJobs = [...stageJobs].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+                    }
+
+                    const isDragTarget = dragOverStage === stage.id;
+
+                    return (
+                      <div
+                        key={stage.id}
+                        onDragOver={(e) => handleDragOver(e, stage.id)}
+                        onDragLeave={() => setDragOverStage(null)}
+                        onDrop={(e) => handleDrop(e, stage.id)}
+                        className={`bg-slate-900/90 border-t-4 ${stage.color} border-x border-b rounded-2xl p-3 min-h-[480px] transition-all ${
+                          isDragTarget
+                            ? 'border-amber-400 bg-amber-500/10 scale-[1.01]'
+                            : 'border-slate-800'
+                        }`}
+                      >
+                        {/* Column Header */}
+                        <div className="flex items-center justify-between mb-3 px-1">
+                          <h3 className="text-xs font-bold text-white">{stage.label}</h3>
+                          <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-xs font-bold">
+                            {stageJobs.length}
+                          </span>
+                        </div>
+
+                        {/* Cards List */}
+                        <div className="space-y-3">
+                          {stageJobs.map(job => (
+                            <div
+                              key={job.id}
+                              draggable={currentUser.canEditJobs}
+                              onDragStart={(e) => handleDragStart(e, job.id)}
+                              className="bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 shadow-sm cursor-grab active:cursor-grabbing transition group"
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <span className="font-mono text-[11px] font-bold text-amber-400">{job.id}</span>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                  job.artworkApproved
+                                    ? 'bg-emerald-500/20 text-emerald-300'
+                                    : 'bg-rose-500/20 text-rose-300'
+                                }`}>
+                                  {job.artworkApproved ? '✓ แบบอนุมัติแล้ว' : '⏳ รออนุมัติแบบ'}
+                                </span>
+                              </div>
+
+                              <div className="text-xs font-bold text-white mb-1 line-clamp-2">{job.title}</div>
+                              <div className="text-[11px] text-slate-400 mb-2">{job.customerName}</div>
+
+                              <div className="flex items-center justify-between text-[11px] text-slate-300 bg-slate-900/70 px-2.5 py-1.5 rounded-lg mb-2.5">
+                                <span>📐 {job.widthCm}×{job.heightCm} ซม. ({job.qty})</span>
+                                <span className="text-amber-300 font-medium">ส่ง {job.dueDate.slice(5)}</span>
+                              </div>
+
+                              <div className="flex items-center justify-between pt-1 border-t border-slate-700/60">
+                                <span className="text-[11px] font-semibold text-slate-300">
+                                  {formatCurrency(job.totalPrice, currentUser.canViewPrices)}
+                                </span>
+                                <button
+                                  onClick={() => setSelectedKanbanJob({ ...job })}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-amber-500 hover:text-slate-950 text-[11px] font-semibold text-white transition"
+                                >
+                                  จัดการ / ตรวจ QC
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+
+                          {stageJobs.length === 0 && (
+                            <div className="border-2 border-dashed border-slate-800 rounded-xl p-6 text-center text-xs text-slate-600">
+                              ลากการ์ดใบงานมาวางที่นี่
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* QC & Status Update Modal */}
+                {selectedKanbanJob && (
+                  <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div>
+                          <span className="font-mono text-xs text-amber-400 font-bold">{selectedKanbanJob.id}</span>
+                          <h3 className="text-base font-bold text-white">{selectedKanbanJob.title}</h3>
+                        </div>
+                        <button
+                          onClick={() => setSelectedKanbanJob(null)}
+                          className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1.5">เปลี่ยนขั้นตอนการผลิต (Stage)</label>
+                        <select
+                          value={selectedKanbanJob.stage}
+                          onChange={e => setSelectedKanbanJob({ ...selectedKanbanJob, stage: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white"
+                        >
+                          {KANBAN_STAGES.map(st => (
+                            <option key={st.id} value={st.id}>{st.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* QC Checklist */}
+                      <div className="bg-slate-800/60 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                        <div className="text-xs font-bold text-amber-400 mb-1">รายการตรวจสอบคุณภาพก่อนส่งมอบ (QC Checklist)</div>
+                        {[
+                          { key: 'sizeVerified', label: 'ตรวจสอบขนาด กว้าง×สูง และสเกลตรงตามแบบ' },
+                          { key: 'colorChecked', label: 'ตรวจสอบค่าสีพิมพ์และวัสดุตรงตามสเปค' },
+                          { key: 'frameWelded', label: 'ตรวจสอบความแข็งแรงรอยเชื่อมโครงเหล็ก / พับขอบ' },
+                          { key: 'ledTested', label: 'ทดสอบระบบไฟ LED และหม้อแปลงครบทุกจุด' },
+                        ].map(item => (
+                          <label key={item.key} className="flex items-center gap-3 text-xs text-slate-200 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!selectedKanbanJob.qcChecklist?.[item.key]}
+                              onChange={e => setSelectedKanbanJob({
+                                ...selectedKanbanJob,
+                                qcChecklist: {
+                                  ...selectedKanbanJob.qcChecklist,
+                                  [item.key]: e.target.checked
+                                }
+                              })}
+                              className="w-4 h-4 accent-amber-500 rounded"
+                            />
+                            <span>{item.label}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">หมายเหตุช่างผลิต / กราฟิก</label>
+                        <textarea
+                          rows="2"
+                          value={selectedKanbanJob.artworkNotes}
+                          onChange={e => setSelectedKanbanJob({ ...selectedKanbanJob, artworkNotes: e.target.value })}
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          onClick={() => setSelectedKanbanJob(null)}
+                          className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-medium"
+                        >
+                          ยกเลิก
+                        </button>
+                        <button
+                          onClick={() => updateJobDetails(selectedKanbanJob)}
+                          className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
+                        >
+                          บันทึกผลตรวจและสถานะ
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ================================================================= */}
+            {/* TAB 4: ARTWORK PROOFING                                           */}
+            {/* ================================================================= */}
+            {activeTab === 'proofing' && (
+              <div className="space-y-4">
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                  <h2 className="text-base font-bold text-white">🎨 ระบบตรวจและยืนยันอนุมัติแบบผลิต (Artwork Proofing)</h2>
+                  <p className="text-xs text-slate-400">ป้องกันการพิมพ์ผิดพลาด ต้องได้รับการยืนยันอนุมัติแบบก่อนสั่งพิมพ์จริง</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {jobs.map(job => (
+                    <div key={job.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between gap-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-mono text-xs font-bold text-amber-400">{job.id}</span>
+                          {job.artworkApproved ? (
+                            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold">
+                              ✅ อนุมัติแบบแล้ว ({job.artworkApprovedAt})
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-semibold animate-pulse">
+                              ⏳ รอลูกค้าคอนเฟิร์มแบบ
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-base font-bold text-white">{job.title}</h3>
+                        <p className="text-xs text-slate-400 mt-0.5">ลูกค้า: {job.customerName} ({job.customerPhone})</p>
+
+                        <div className="mt-3 p-3.5 rounded-xl bg-slate-800/70 border border-slate-700/60 text-xs space-y-1.5">
+                          <div className="text-slate-300"><strong>ขนาดผลิตจริง:</strong> {job.widthCm} × {job.heightCm} ซม. (จำนวน {job.qty} ชุด)</div>
+                          <div className="text-slate-300"><strong>สเปควัสดุ:</strong> {job.material}</div>
+                          <div className="text-amber-200/90"><strong>รายละเอียดอาร์ตเวิร์ก:</strong> {job.artworkNotes}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+                        <span className="text-xs text-slate-400">กำหนดส่ง: {job.dueDate}</span>
+                        {!job.artworkApproved ? (
+                          <button
+                            onClick={() => handleApproveArtwork(job.id)}
+                            className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition"
+                          >
+                            ✓ ยืนยันอนุมัติแบบผลิต (Approve Artwork)
+                          </button>
+                        ) : (
+                          <span className="text-xs text-emerald-400 font-medium">พร้อมส่งเข้าเครื่องพิมพ์ / โรงงาน</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ================================================================= */}
+            {/* TAB 5: INSTALLATION & GPS HUB                                     */}
+            {/* ================================================================= */}
+            {activeTab === 'installation' && (
+              <div className="space-y-4">
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+                  <h2 className="text-base font-bold text-white">🚚 ศูนย์ควบคุมทีมติดตั้งภาคสนาม & พิกัด GPS</h2>
+                  <p className="text-xs text-slate-400">เปิดนำทาง Google Maps ไปยังหน้างานและกดเช็คอินปิดงานเมื่อติดตั้งเสร็จสมบูรณ์</p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {jobs.map(job => (
+                    <div key={job.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-amber-400 font-bold">{job.id}</span>
+                            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px]">
+                              ทีมรับผิดชอบ: {job.installer}
+                            </span>
+                          </div>
+                          <h3 className="text-base font-bold text-white mt-1">{job.title}</h3>
+                          <p className="text-xs text-slate-400">{job.customerName} • โทร {job.customerPhone}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                          job.stage === 'completed'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : 'bg-orange-500/20 text-orange-300'
+                        }`}>
+                          {job.stage === 'completed' ? '✓ ติดตั้งเสร็จสิ้น' : '📍 รอติดตั้งหน้างาน'}
+                        </span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-800 text-xs text-slate-300">
+                        <div className="font-semibold text-slate-200 mb-1">📍 ที่อยู่สถานที่ติดตั้ง:</div>
+                        <div>{job.customerAddress || 'รับสินค้าหน้าร้าน / ไม่ระบุที่อยู่'}</div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                        <a
+                          href={job.installLocationUrl || `https://maps.google.com/?q=${encodeURIComponent(job.customerAddress || job.customerName)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3.5 py-2 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                        >
+                          🗺️ เปิดนำทาง Google Maps
+                        </a>
+
+                        {job.stage !== 'completed' ? (
+                          <button
+                            onClick={() => handleCompleteInstallation(job.id)}
+                            className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition"
+                          >
+                            📸 เช็คอินหน้างาน / ปิดงานติดตั้ง
+                          </button>
+                        ) : (
+                          <span className="text-xs text-emerald-400 font-semibold">ส่งมอบงานเรียบร้อยแล้ว</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ================================================================= */}
+            {/* TAB 6: INVENTORY & MACHINE LOGS                                   */}
+            {/* ================================================================= */}
+            {activeTab === 'inventory' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Inventory Table */}
+                <div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                  <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-bold text-white">📦 คลังม้วนวัสดุพิมพ์ แผ่นอะคริลิก และอุปกรณ์</h2>
+                      <p className="text-xs text-slate-400">
+                        {currentUser.canManageInventory
+                          ? 'คุณมีสิทธิ์เบิก-จ่ายและปรับยอดสต็อกวัสดุได้'
+                          : '🔒 โหมดดูอย่างเดียว (เฉพาะ Admin Master ที่ปรับยอดสต็อกได้)'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-800/60 text-slate-400 text-xs uppercase">
+                          <th className="py-3 px-4">รายการวัสดุ</th>
+                          <th className="py-3 px-4">หมวดหมู่</th>
+                          <th className="py-3 px-4 text-right">ต้นทุน/หน่วย</th>
+                          <th className="py-3 px-4 text-center">คงเหลือ</th>
+                          <th className="py-3 px-4 text-center">เบิก / เติมสต็อก</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 text-sm">
+                        {inventory.map(item => {
+                          const isLow = item.stock <= item.minStock;
+                          return (
+                            <tr key={item.id} className="hover:bg-slate-800/40">
+                              <td className="py-3 px-4">
+                                <div className="font-semibold text-white">{item.name}</div>
+                                {isLow && (
+                                  <span className="inline-block mt-1 px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold">
+                                    ⚠️ สต็อกต่ำกว่าเกณฑ์ขั้นต่ำ ({item.minStock})
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 text-xs text-slate-400">{item.category}</td>
+                              <td className="py-3 px-4 text-right text-xs font-medium">
+                                {formatCurrency(item.costPerUnit, currentUser.canViewPrices)}
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <span className={`font-bold ${isLow ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                  {item.stock}
+                                </span>{' '}
+                                <span className="text-xs text-slate-400">{item.unit}</span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    disabled={!currentUser.canManageInventory}
+                                    onClick={() => handleAdjustStock(item.id, -1)}
+                                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-rose-300 disabled:opacity-40 font-bold"
+                                  >
+                                    -
+                                  </button>
+                                  <button
+                                    disabled={!currentUser.canManageInventory}
+                                    onClick={() => handleAdjustStock(item.id, 1)}
+                                    className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-emerald-500/20 text-emerald-300 disabled:opacity-40 font-bold"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Machine Maintenance Log */}
+                <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                  <div>
+                    <h3 className="text-base font-bold text-white">🖨️ บันทึกดูแลเครื่องพิมพ์ & เลเซอร์ CNC</h3>
+                    <p className="text-xs text-slate-400">บันทึกการล้างหัวพิมพ์ เช็คเลนส์ และซ่อมบำรุง</p>
+                  </div>
+
+                  <form onSubmit={handleAddMachineLog} className="space-y-3 bg-slate-800/50 p-3.5 rounded-xl border border-slate-800">
+                    <select
+                      value={newMachineLog.machine}
+                      onChange={e => setNewMachineLog({ ...newMachineLog, machine: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white"
+                    >
+                      <option>เครื่องพิมพ์อิงค์เจ็ท Mimaki JV300-160</option>
+                      <option>เครื่องตัดเลเซอร์ CNC Laser 1325 (150W)</option>
+                      <option>เครื่องเคลือบลามิเนตเย็นอัตโนมัติ 1.60 ม.</option>
+                      <option>เครื่องพับตัวอักษรโลหะอัตโนมัติ</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="รายละเอียดการดูแล เช่น ล้างหัวพิมพ์ / เปลี่ยนใบมีด..."
+                      value={newMachineLog.task}
+                      onChange={e => setNewMachineLog({ ...newMachineLog, task: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs"
+                    >
+                      + บันทึกประวัติเครื่องจักร
+                    </button>
+                  </form>
+
+                  <div className="space-y-2.5 max-h-[360px] overflow-y-auto">
+                    {machineLogs.map(log => (
+                      <div key={log.id} className="p-3 rounded-xl bg-slate-800/70 border border-slate-700/60 text-xs">
+                        <div className="font-bold text-sky-300">{log.machine}</div>
+                        <div className="text-slate-200 mt-1">{log.task}</div>
+                        <div className="flex justify-between text-[10px] text-slate-400 mt-2">
+                          <span>โดย: {log.technician}</span>
+                          <span>{log.date}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================================================================= */}
+            {/* TAB 7: DOCUMENTS & TAX ENGINE (A4 PRINTABLE)                      */}
+            {/* ================================================================= */}
+            {activeTab === 'documents' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left Controls (Hidden on Print) */}
+                <div className="lg:col-span-4 space-y-4 no-print">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                    <h2 className="text-base font-bold text-white">🧾 ตั้งค่าเอกสารและระบบภาษี A4</h2>
+
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">1. เลือกใบงานที่ต้องการออกเอกสาร</label>
+                      <select
+                        value={selectedDocJobId}
+                        onChange={e => setSelectedDocJobId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white"
+                      >
+                        {jobs.map(j => (
+                          <option key={j.id} value={j.id}>
+                            {j.id} - {j.customerName} ({j.title})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-slate-400 mb-1">2. เลือกประเภทเอกสารมาตรฐาน</label>
+                      <select
+                        value={docType}
+                        onChange={e => setDocType(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white"
+                      >
+                        <option value="quotation">ใบเสนอราคา (Quotation)</option>
+                        <option value="work_order">ใบสั่งผลิตโรงงาน (Work Order - ซ่อนราคา)</option>
+                        <option value="invoice">ใบส่งของ / ใบแจ้งหนี้ (Delivery & Invoice)</option>
+                        <option value="tax_invoice">ใบกำกับภาษี / ใบเสร็จรับเงิน (Tax Invoice)</option>
+                        <option value="deposit">ใบรับเงินมัดจำ (Deposit Receipt)</option>
+                        <option value="qr_ticket">สติ๊กเกอร์ QR Code ติดม้วนงาน (Job Ticket)</option>
+                      </select>
+                    </div>
+
+                    {/* VAT & WHT Toggles */}
+                    {docType !== 'work_order' && docType !== 'qr_ticket' && (
+                      <div className="p-3.5 rounded-xl bg-slate-800/70 border border-slate-700 space-y-3">
+                        <label className="flex items-center justify-between cursor-pointer text-xs">
+                          <span className="text-slate-200 font-medium">คำนวณภาษีมูลค่าเพิ่ม (VAT 7%)</span>
+                          <input
+                            type="checkbox"
+                            checked={includeVat}
+                            onChange={e => setIncludeVat(e.target.checked)}
+                            className="w-4 h-4 accent-amber-500"
+                          />
+                        </label>
+                        <label className="flex items-center justify-between cursor-pointer text-xs">
+                          <span className="text-slate-200 font-medium">หักภาษี ณ ที่จ่าย (WHT 3% ค่าจ้างทำของ)</span>
+                          <input
+                            type="checkbox"
+                            checked={includeWht}
+                            onChange={e => setIncludeWht(e.target.checked)}
+                            className="w-4 h-4 accent-amber-500"
+                          />
+                        </label>
+                      </div>
+                    )}
+
+                    {/* Editable Shop Header Info */}
+                    <div className="border-t border-slate-800 pt-3 space-y-2.5">
+                      <div className="text-xs font-bold text-amber-400">แก้ไขข้อมูลหัวบิลร้านค้า (แสดงบน A4)</div>
+                      <input
+                        type="text"
+                        value={shopInfo.name}
+                        onChange={e => setShopInfo({ ...shopInfo, name: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white"
+                        placeholder="ชื่อบริษัท / ร้านป้าย"
+                      />
+                      <input
+                        type="text"
+                        value={shopInfo.taxId}
+                        onChange={e => setShopInfo({ ...shopInfo, taxId: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white"
+                        placeholder="เลขประจำตัวผู้เสียภาษี"
+                      />
+                      <textarea
+                        rows="2"
+                        value={shopInfo.address}
+                        onChange={e => setShopInfo({ ...shopInfo, address: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-white"
+                        placeholder="ที่อยู่ร้าน"
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => window.print()}
+                      className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-lg transition flex items-center justify-center gap-2"
+                    >
+                      <span>🖨️ พิมพ์เอกสาร A4 / บันทึกเป็น PDF</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right A4 Document Preview */}
+                <div className="lg:col-span-8">
+                  {selectedDocJob && (
+                    <div className="print-only-container bg-white text-slate-900 rounded-2xl shadow-2xl p-8 sm:p-10 font-sarabun min-h-[820px] flex flex-col justify-between">
+                      {docType === 'qr_ticket' ? (
+                        /* QR JOB TICKET STICKER PREVIEW */
+                        <div className="border-4 border-slate-900 rounded-2xl p-6 max-w-md mx-auto my-auto">
+                          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3 mb-4">
+                            <div>
+                              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">PRODUCTION JOB TICKET</div>
+                              <div className="text-xl font-extrabold text-slate-950">{selectedDocJob.id}</div>
+                            </div>
+                            {/* Crisp Inline SVG QR Code Representation */}
+                            <svg className="w-20 h-20 text-slate-950" viewBox="0 0 100 100" fill="currentColor">
+                              <rect x="5" y="5" width="25" height="25" fill="none" stroke="currentColor" strokeWidth="5"/>
+                              <rect x="12" y="12" width="11" height="11"/>
+                              <rect x="70" y="5" width="25" height="25" fill="none" stroke="currentColor" strokeWidth="5"/>
+                              <rect x="77" y="12" width="11" height="11"/>
+                              <rect x="5" y="70" width="25" height="25" fill="none" stroke="currentColor" strokeWidth="5"/>
+                              <rect x="12" y="77" width="11" height="11"/>
+                              <rect x="40" y="10" width="8" height="8"/><rect x="52" y="18" width="8" height="8"/>
+                              <rect x="38" y="38" width="12" height="12"/><rect x="55" y="42" width="10" height="10"/>
+                              <rect x="15" y="45" width="12" height="8"/><rect x="72" y="48" width="15" height="8"/>
+                              <rect x="42" y="65" width="8" height="12"/><rect x="60" y="70" width="15" height="15"/>
+                              <rect x="80" y="75" width="12" height="12"/>
+                            </svg>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div><strong>ลูกค้า:</strong> {selectedDocJob.customerName}</div>
+                            <div><strong>ชิ้นงาน:</strong> {selectedDocJob.title}</div>
+                            <div className="p-2.5 bg-slate-100 rounded-lg font-bold text-base">
+                              ขนาดผลิต: {selectedDocJob.widthCm} × {selectedDocJob.heightCm} ซม. ({selectedDocJob.qty} ชุด)
+                            </div>
+                            <div><strong>วัสดุ:</strong> {selectedDocJob.material}</div>
+                            <div><strong>กำหนดส่งงาน:</strong> <span className="underline font-bold">{selectedDocJob.dueDate}</span></div>
+                            <div><strong>สถานะแบบ:</strong> {selectedDocJob.artworkApproved ? '✅ อนุมัติแบบผลิตแล้ว' : '⚠️ รออนุมัติแบบ'}</div>
+                          </div>
+                        </div>
+                      ) : (
+                        /* STANDARD A4 BUSINESS / TAX DOCUMENT */
+                        <>
+                          <div>
+                            {/* Document Top Header */}
+                            <div className="flex flex-wrap justify-between items-start gap-4 border-b-2 border-slate-900 pb-5">
+                              <div className="max-w-md">
+                                <h1 className="text-xl font-bold text-slate-950">{shopInfo.name}</h1>
+                                <p className="text-xs text-slate-700 mt-1">{shopInfo.address}</p>
+                                <p className="text-xs text-slate-700">โทร: {shopInfo.phone} | เลขประจำตัวผู้เสียภาษี: {shopInfo.taxId}</p>
+                              </div>
+                              <div className="text-right">
+                                <div className="inline-block px-4 py-1.5 bg-slate-900 text-white font-bold text-base rounded">
+                                  {docType === 'quotation' && 'ใบเสนอราคา / QUOTATION'}
+                                  {docType === 'work_order' && 'ใบสั่งผลิตโรงงาน / WORK ORDER'}
+                                  {docType === 'invoice' && 'ใบส่งของ / ใบแจ้งหนี้'}
+                                  {docType === 'tax_invoice' && 'ใบกำกับภาษี / ใบเสร็จรับเงิน'}
+                                  {docType === 'deposit' && 'ใบรับเงินมัดจำ / DEPOSIT RECEIPT'}
+                                </div>
+                                <div className="text-xs text-slate-700 mt-2 space-y-0.5">
+                                  <div><strong>เลขที่เอกสาร:</strong> DOC-{selectedDocJob.id}</div>
+                                  <div><strong>วันที่ออกเอกสาร:</strong> {new Date().toLocaleDateString('th-TH')}</div>
+                                  <div><strong>กำหนดส่งมอบ:</strong> {selectedDocJob.dueDate}</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Customer Block */}
+                            <div className="grid grid-cols-2 gap-4 my-5 p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                              <div>
+                                <div className="font-bold text-slate-900 mb-1">ข้อมูลลูกค้า (Customer):</div>
+                                <div className="font-semibold text-sm">{selectedDocJob.customerName}</div>
+                                <div className="text-slate-700 mt-0.5">{selectedDocJob.customerAddress || '-'}</div>
+                                <div className="text-slate-700 mt-0.5">โทร: {selectedDocJob.customerPhone || '-'}</div>
+                                {selectedDocJob.customerTaxId && (
+                                  <div className="text-slate-700">เลขประจำตัวผู้เสียภาษี: {selectedDocJob.customerTaxId}</div>
+                                )}
+                              </div>
+                              <div>
+                                <div className="font-bold text-slate-900 mb-1">รายละเอียดอ้างอิงการผลิต:</div>
+                                <div>รหัสอ้างอิงใบงาน: <strong>{selectedDocJob.id}</strong></div>
+                                <div>ผู้ประสานงาน: {currentUser.name}</div>
+                                <div>ทีมติดตั้ง: {selectedDocJob.installer}</div>
+                              </div>
+                            </div>
+
+                            {/* Items Table */}
+                            <table className="w-full border-collapse border border-slate-300 text-xs mt-4">
+                              <thead>
+                                <tr className="bg-slate-100 text-slate-900">
+                                  <th className="border border-slate-300 py-2.5 px-3 text-center w-12">ลำดับ</th>
+                                  <th className="border border-slate-300 py-2.5 px-3 text-left">รายการสินค้า / รายละเอียดสเปควัสดุ</th>
+                                  <th className="border border-slate-300 py-2.5 px-3 text-center w-28">ขนาด (ซม.)</th>
+                                  <th className="border border-slate-300 py-2.5 px-3 text-center w-16">จำนวน</th>
+                                  {docType !== 'work_order' && currentUser.canViewPrices && (
+                                    <th className="border border-slate-300 py-2.5 px-3 text-right w-28">จำนวนเงิน (บาท)</th>
+                                  )}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td className="border border-slate-300 py-3 px-3 text-center align-top">1</td>
+                                  <td className="border border-slate-300 py-3 px-3 align-top">
+                                    <div className="font-bold text-sm text-slate-950">{selectedDocJob.title}</div>
+                                    <div className="text-slate-700 mt-1">วัสดุ: {selectedDocJob.material}</div>
+                                    <div className="text-slate-600 mt-0.5">หมายเหตุ: {selectedDocJob.artworkNotes}</div>
+                                  </td>
+                                  <td className="border border-slate-300 py-3 px-3 text-center align-top">
+                                    {selectedDocJob.widthCm} × {selectedDocJob.heightCm}
+                                  </td>
+                                  <td className="border border-slate-300 py-3 px-3 text-center align-top">
+                                    {selectedDocJob.qty} ชุด
+                                  </td>
+                                  {docType !== 'work_order' && currentUser.canViewPrices && (
+                                    <td className="border border-slate-300 py-3 px-3 text-right align-top font-semibold">
+                                      {formatNumber(docFinancials.subtotal)}
+                                    </td>
+                                  )}
+                                </tr>
+                              </tbody>
+                            </table>
+
+                            {/* Financial Totals Section */}
+                            {docType !== 'work_order' && currentUser.canViewPrices && (
+                              <div className="flex justify-between items-start mt-5 gap-6">
+                                <div className="text-xs text-slate-700 max-w-sm">
+                                  <div className="font-bold text-slate-900 mb-1">ข้อมูลการชำระเงิน / โอนเข้าบัญชี:</div>
+                                  <div>{shopInfo.bankInfo}</div>
+                                  <div className="mt-2 text-[11px] text-slate-500">
+                                    * กรุณาชำระมัดจำ 50% ก่อนเริ่มดำเนินการผลิต และชำระส่วนที่เหลือในวันส่งมอบงาน
+                                  </div>
+                                </div>
+
+                                <div className="w-72 text-xs space-y-1.5 border border-slate-300 p-3.5 rounded bg-slate-50">
+                                  <div className="flex justify-between">
+                                    <span>รวมเป็นเงิน (Subtotal):</span>
+                                    <span className="font-semibold">{formatNumber(docFinancials.subtotal)} บาท</span>
+                                  </div>
+                                  {includeVat && (
+                                    <div className="flex justify-between">
+                                      <span>ภาษีมูลค่าเพิ่ม (VAT 7%):</span>
+                                      <span>{formatNumber(docFinancials.vat)} บาท</span>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between font-bold text-sm border-t border-slate-300 pt-1.5 text-slate-950">
+                                    <span>ยอดรวมสุทธิ (Grand Total):</span>
+                                    <span>{formatNumber(docFinancials.grandTotal)} บาท</span>
+                                  </div>
+                                  {includeWht && (
+                                    <>
+                                      <div className="flex justify-between text-rose-700">
+                                        <span>หักภาษี ณ ที่จ่าย (WHT 3%):</span>
+                                        <span>-{formatNumber(docFinancials.wht)} บาท</span>
+                                      </div>
+                                      <div className="flex justify-between font-bold text-sm border-t border-slate-300 pt-1.5 text-emerald-800">
+                                        <span>ยอดชำระสุทธิหลังหักภาษี:</span>
+                                        <span>{formatNumber(docFinancials.netPayable)} บาท</span>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Signature Blocks */}
+                          <div className="grid grid-cols-3 gap-6 pt-12 mt-8 border-t border-slate-200 text-center text-xs">
+                            <div>
+                              <div className="border-b border-slate-400 h-10 mb-2"></div>
+                              <div>ผู้สั่งซื้อ / ผู้อนุมัติแบบ</div>
+                              <div className="text-slate-500 mt-0.5">วันที่ ____/____/______</div>
+                            </div>
+                            <div>
+                              <div className="border-b border-slate-400 h-10 mb-2"></div>
+                              <div>ผู้จัดทำ / ฝ่ายขาย</div>
+                              <div className="text-slate-500 mt-0.5">({currentUser.name})</div>
+                            </div>
+                            <div>
+                              <div className="border-b border-slate-400 h-10 mb-2"></div>
+                              <div>ผู้มีอำนาจลงนาม</div>
+                              <div className="text-slate-500 mt-0.5">{shopInfo.name}</div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ================================================================= */}
+            {/* TAB 8: STAFF & RBAC PERMISSIONS                                   */}
+            {/* ================================================================= */}
+            {activeTab === 'staff' && (
+              <div className="space-y-4">
+                <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-bold text-white">🔐 จัดการทีมงานและสิทธิ์การเข้าถึงข้อมูล (RBAC Permissions)</h2>
+                    <p className="text-xs text-slate-400">กำหนดรหัส PIN และควบคุมสิทธิ์การเห็นราคา/กำไร การแก้ไขใบงาน และการจัดการคลังวัสดุ</p>
+                  </div>
+                  {currentUser.role === 'Admin Master' && (
+                    <button
+                      onClick={() => setShowAddStaffModal(true)}
+                      className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition"
+                    >
+                      + เพิ่มพนักงานใหม่
+                    </button>
+                  )}
+                </div>
+
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-800/60 text-slate-400 text-xs uppercase">
+                          <th className="py-3.5 px-4">ชื่อพนักงาน / ตำแหน่ง</th>
+                          <th className="py-3.5 px-4">แผนก</th>
+                          <th className="py-3.5 px-4 text-center">รหัส PIN</th>
+                          <th className="py-3.5 px-4 text-center">ดูราคา / ต้นทุน / กำไร</th>
+                          <th className="py-3.5 px-4 text-center">รับงาน / ย้าย Kanban</th>
+                          <th className="py-3.5 px-4 text-center">เบิก-เติมสต็อกคลัง</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 text-sm">
+                        {staffList.map(stf => (
+                          <tr key={stf.id} className="hover:bg-slate-800/40">
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-white">{stf.name}</div>
+                              <div className="text-xs text-amber-400">{stf.role}</div>
+                            </td>
+                            <td className="py-3.5 px-4 text-xs text-slate-300">{stf.department}</td>
+                            <td className="py-3.5 px-4 text-center font-mono text-xs font-bold text-sky-300">
+                              {currentUser.role === 'Admin Master' ? stf.pin : '••••'}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <button
+                                onClick={() => handleTogglePermission(stf.id, 'canViewPrices')}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+                                  stf.canViewPrices
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                    : 'bg-slate-800 text-slate-500 border border-slate-700'
+                                }`}
+                              >
+                                {stf.canViewPrices ? '✓ อนุญาต' : '✕ ซ่อนราคา'}
+                              </button>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <button
+                                onClick={() => handleTogglePermission(stf.id, 'canEditJobs')}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+                                  stf.canEditJobs
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                    : 'bg-slate-800 text-slate-500 border border-slate-700'
+                                }`}
+                              >
+                                {stf.canEditJobs ? '✓ อนุญาต' : '✕ ดูอย่างเดียว'}
+                              </button>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <button
+                                onClick={() => handleTogglePermission(stf.id, 'canManageInventory')}
+                                className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+                                  stf.canManageInventory
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                    : 'bg-slate-800 text-slate-500 border border-slate-700'
+                                }`}
+                              >
+                                {stf.canManageInventory ? '✓ อนุญาต' : '✕ ห้ามแก้ไข'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Add Staff Modal */}
+                {showAddStaffModal && (
+                  <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <form onSubmit={handleCreateStaff} className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-4">
+                      <h3 className="text-base font-bold text-white">+ เพิ่มบัญชีพนักงานใหม่</h3>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">ชื่อ-นามสกุล พนักงาน</label>
+                        <input
+                          type="text"
+                          required
+                          value={newStaffForm.name}
+                          onChange={e => setNewStaffForm({ ...newStaffForm, name: e.target.value })}
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">รหัส PIN 4 หลัก</label>
+                          <input
+                            type="text"
+                            maxLength="4"
+                            required
+                            placeholder="เช่น 3333"
+                            value={newStaffForm.pin}
+                            onChange={e => setNewStaffForm({ ...newStaffForm, pin: e.target.value.replace(/\D/g, '') })}
+                            className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">ตำแหน่ง</label>
+                          <select
+                            value={newStaffForm.role}
+                            onChange={e => setNewStaffForm({ ...newStaffForm, role: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white"
+                          >
+                            <option value="Sales & Design">Sales & Design</option>
+                            <option value="Production & Installer">Production & Installer</option>
+                            <option value="Admin Master">Admin Master</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowAddStaffModal(false)}
+                          className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs"
+                        >
+                          ยกเลิก
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-5 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs"
+                        >
+                          บันทึกพนักงาน
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </div>
+            )}
+          </main>
+
+          {/* ================================================================= */}
+          {/* CLOUD SYNC & JSON BACKUP MODAL                                    */}
+          {/* ================================================================= */}
+          {showCloudModal && (
+            <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
+              <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <h3 className="text-base font-bold text-white">☁️ สำรองข้อมูล & ซิงค์คลาวด์ (Backup)</h3>
+                  <button onClick={() => setShowCloudModal(false)} className="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-slate-400 mb-1">Google Apps Script / Cloud Webhook URL (ถ้ามี)</label>
+                    <input
+                      type="url"
+                      placeholder="https://script.google.com/macros/s/..."
+                      value={shopInfo.webhookUrl}
+                      onChange={e => setShopInfo({ ...shopInfo, webhookUrl: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleTriggerCloudWebhook}
+                    className="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs transition"
+                  >
+                    🔄 บันทึกการตั้งค่า & ซิงค์ข้อมูลเดี๋ยวนี้
+                  </button>
+                </div>
+
+                <div className="border-t border-slate-800 pt-4 space-y-2.5">
+                  <div className="text-xs font-semibold text-slate-300">สำรองข้อมูลลงเครื่องคอมพิวเตอร์ (Offline JSON)</div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      onClick={handleExportJson}
+                      className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-amber-300 font-semibold transition"
+                    >
+                      ⬇️ Export ไฟล์ .JSON
+                    </button>
+                    <label className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-emerald-300 font-semibold text-center cursor-pointer transition">
+                      ⬆️ Import กู้คืนข้อมูล
+                      <input type="file" accept=".json" onChange={handleImportJson} className="hidden" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
